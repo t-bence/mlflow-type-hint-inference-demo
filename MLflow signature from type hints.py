@@ -3,10 +3,12 @@
 # MAGIC Update mlflow to 2.20, which introduces type hint based signatures
 # MAGIC
 # MAGIC You can find some interesting resources here: https://www.mlflow.org/docs/latest/model/python_model.html#model-signature-inference-based-on-type-hints
+# MAGIC
+# MAGIC Let's fix the pydantic version as well, this is needed to make the code work on DBRs 15.4 LTS ML and 16.2 ML
 
 # COMMAND ----------
 
-# MAGIC %pip install mlflow-skinny==2.20.*
+# MAGIC %pip install mlflow-skinny==2.20.* pydantic==2.10.6
 
 # COMMAND ----------
 
@@ -59,11 +61,18 @@ for proba in treasure_model.predict(coordinates):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC But it will fail if we give int unexpeceted input types, for example `int`s. This is all captured from the type hints!
+# MAGIC Let's predict on summy dummy data as well
 
 # COMMAND ----------
 
 treasure_model.predict([{"latitude": 1.0, "longitude": 1.0}])
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC Now let's try it on some data that has wrong data type -- here, `longitude` is a string instad of a float.
+# MAGIC
+# MAGIC Notice the nice descriptive error message!
 
 # COMMAND ----------
 
@@ -73,6 +82,11 @@ except Exception as e:
     print("Cannot predict!")
     print(e)
 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Another experiment: a field is completely missing
 
 # COMMAND ----------
 
@@ -92,7 +106,16 @@ except Exception as e:
 # COMMAND ----------
 
 import mlflow
-model_info = mlflow.pyfunc.log_model("treasure_model", python_model=treasure_model)
+
+mlflow.end_run()
+
+with mlflow.start_run() as run:
+    model_info = mlflow.pyfunc.log_model(
+        "treasure_model",
+        python_model=treasure_model,
+        input_example=coordinates
+    )
+
 
 # COMMAND ----------
 
@@ -109,12 +132,13 @@ model.predict([{"latitude": 1.0, "longitude": 1.0}])
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Let's also register a model
+# MAGIC We could also register the model
 
 # COMMAND ----------
 
 mlflow.set_registry_uri("databricks-uc")
-reg_info = mlflow.register_model(f"runs:/{model_info.run_id}/treasure_model", "bence-toth-catalog.demo.treasure-model")
+model_name = ""
+# reg_info = mlflow.register_model(f"runs:/{model_info.run_id}/treasure_model", model_name)
 
 # COMMAND ----------
 
@@ -124,6 +148,11 @@ reg_info = mlflow.register_model(f"runs:/{model_info.run_id}/treasure_model", "b
 # COMMAND ----------
 
 treasure_udf = mlflow.pyfunc.spark_udf(spark, model_uri=f"runs:/{model_info.run_id}/treasure_model")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Let's create a simple dataframe and run the UDF on it
 
 # COMMAND ----------
 
