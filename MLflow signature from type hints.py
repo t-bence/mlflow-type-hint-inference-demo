@@ -1,10 +1,13 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Update mlflow to 2.20, which introduces type hint based signatures
+# MAGIC # MLflow signatures from type hints
+# MAGIC
+# MAGIC This notebook introduces a new feature of MLflow: that it can infer the schema of a `PythonFunction` model from its type hints.
 # MAGIC
 # MAGIC You can find some interesting resources here: https://www.mlflow.org/docs/latest/model/python_model.html#model-signature-inference-based-on-type-hints
 # MAGIC
-# MAGIC Let's fix the pydantic version as well, this is needed to make the code work on DBRs 15.4 LTS ML and 16.2 ML
+# MAGIC Preparations: Update mlflow to 2.20, which introduces type hint based signatures. Let's fix the pydantic version as well, this is needed to make the code work on DBRs 15.4 LTS ML and 16.2 ML
+# MAGIC
 
 # COMMAND ----------
 
@@ -61,7 +64,7 @@ for proba in treasure_model.predict(coordinates):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Let's predict on summy dummy data as well
+# MAGIC Let's predict on some dummy data as well
 
 # COMMAND ----------
 
@@ -86,7 +89,7 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Another experiment: a field is completely missing
+# MAGIC Another experiment: a field is completely missing -- again, we get an exception! Nice!
 
 # COMMAND ----------
 
@@ -125,19 +128,30 @@ with mlflow.start_run() as run:
 # COMMAND ----------
 
 model = mlflow.pyfunc.load_model(f"runs:/{model_info.run_id}/treasure_model")
-print(model.metadata.get_output_schema())
 
 model.predict([{"latitude": 1.0, "longitude": 1.0}])
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC We could also register the model
+# MAGIC We can inspect the stored schema:
 
 # COMMAND ----------
 
-mlflow.set_registry_uri("databricks-uc")
-model_name = ""
+print("Input:")
+print(model.metadata.get_input_schema())
+print("Output:")
+print(model.metadata.get_output_schema())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC On Databricks, we could also register the model into Unity Catalog. It picks up the schema as well, but only shows the input type as "object" and the output as "float"
+
+# COMMAND ----------
+
+# mlflow.set_registry_uri("databricks-uc")
+# model_name = "bence_toth.testing.dummy-model"
 # reg_info = mlflow.register_model(f"runs:/{model_info.run_id}/treasure_model", model_name)
 
 # COMMAND ----------
